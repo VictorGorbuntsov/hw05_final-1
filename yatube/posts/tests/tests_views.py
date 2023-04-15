@@ -8,11 +8,11 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django import forms
 
-from ..models import Post, Group, User
+from ..models import Follow, Post, Group, User
 from posts.forms import PostForm
-from yatube.settings import NUMBER_OF_POSTS_IN_PAG
+from django.conf import settings
 
-TOTAL_NUMBER_OF_POSTS = 13
+TOTAL_NUMBER_POSTS = 13
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -36,7 +36,7 @@ class PostPagesTests(TestCase):
             b'\x02\x00\x01\x00\x00\x02\x02\x0C'
             b'\x0A\x00\x3B'
         )
-        uploaded = SimpleUploadedFile(
+        cls.uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
             content_type='image/gif'
@@ -45,7 +45,7 @@ class PostPagesTests(TestCase):
             author=cls.user,
             group=cls.group,
             text='test*100',
-            image=uploaded,
+            image=cls.uploaded,
         )
 
     @classmethod
@@ -67,7 +67,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(post.author, self.post.author)
         self.assertEqual(post.group, self.post.group)
         self.assertEqual(post.pub_date, self.post.pub_date)
-        self.assertTrue(post.image)
+        self.assertEqual(post.image, self.post.image)
 
     def test_index_page_show_correct_context(self):
         """Шаблон index сформирован с правильным контекстом."""
@@ -103,6 +103,7 @@ class PostPagesTests(TestCase):
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
+            'image': forms.fields.ImageField,
         }
         urls = (
             ('posts:post_create', None),
@@ -142,6 +143,7 @@ class PaginatorViewsTest(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='auth')
+        cls.user2 = User.objects.create_user(username='subscr')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='75',
@@ -150,26 +152,32 @@ class PaginatorViewsTest(TestCase):
         cls.posts = Post.objects.bulk_create(
             [Post(author=cls.user,
                   text=f'{index}',
-                  group=cls.group) for index in range(TOTAL_NUMBER_OF_POSTS)]
+                  group=cls.group) for index in range(TOTAL_NUMBER_POSTS)]
         )
+        Follow.objects.create(user=cls.user2, author=cls.user)
         cache.clear()
+
+    def setUp(self):
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user2)
 
     def test_page(self):
         reverse_names = (
             ('posts:index', None),
+            ('posts:follow_index', None),
             ('posts:group_list', (self.group.slug,)),
             ('posts:profile', (self.user.username,)),
         )
         posts_in_page = (
-            ('?page=1', NUMBER_OF_POSTS_IN_PAG),
-            ('?page=2', TOTAL_NUMBER_OF_POSTS - NUMBER_OF_POSTS_IN_PAG),
+            ('?page=1', settings.NUMBER_OF_POSTS_IN_PAG),
+            ('?page=2', TOTAL_NUMBER_POSTS - settings.NUMBER_OF_POSTS_IN_PAG),
         )
         for name, args in reverse_names:
             with self.subTest(name=name):
                 for page, number in posts_in_page:
                     with self.subTest(page=page):
-                        response = self.client.get(reverse(name,
-                                                           args=args) + page)
+                        response = self.authorized_client.get(
+                            reverse(name, args=args) + page)
                         self.assertEqual(len(response.context['page_obj']),
                                          number)
 
@@ -185,11 +193,10 @@ class CacheViewTest(TestCase):
         cache.clear()
 
     def test_cache(self):
-        response = self.client.get(self.url)
-        self.assertIn(self.post.text.encode(), response.content)
+        response1 = self.client.get(self.url)
         self.post.delete()
-        response = self.client.get(self.url)
-        self.assertIn(self.post.text.encode(), response.content)
+        response2 = self.client.get(self.url)
+        self.assertEqual(response1.content, response2.content)
         cache.clear()
-        response = self.client.get(self.url)
-        self.assertNotIn(self.post.text.encode(), response.content)
+        response3 = self.client.get(self.url)
+        self.assertNotEqual(response1.content, response3.content)

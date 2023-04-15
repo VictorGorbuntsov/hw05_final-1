@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post, User
+from ..models import Follow, Group, Post, User
 
 
 class PostURLTests(TestCase):
@@ -23,6 +23,7 @@ class PostURLTests(TestCase):
             text='Тестовый пост',
             group=cls.group,
         )
+        Follow.objects.create(user=cls.user, author=cls.user2)
 
     def setUp(self):
         self.author = Client()
@@ -36,6 +37,10 @@ class PostURLTests(TestCase):
             ('posts:post_detail', (self.post.id,)),
             ('posts:post_edit', (self.post.id,)),
             ('posts:post_create', None),
+            ('posts:follow_index', None),
+            ('posts:profile_follow', (self.user.username,)),
+            ('posts:profile_unfollow', (self.user.username,)),
+            ('posts:add_comment', (self.post.id,)),
         )
         cache.clear()
 
@@ -46,18 +51,32 @@ class PostURLTests(TestCase):
             ('posts:index', None, '/'),
             ('posts:group_list',
              (self.group.slug,),
-             f'/group/{self.group.slug}/'
+             f'/group/{self.group.slug}/',
              ),
             ('posts:profile',
              (self.user.username,),
-             f'/profile/{self.user.username}/'
+             f'/profile/{self.user.username}/',
              ),
             ('posts:post_detail', (self.post.id,), f'/posts/{self.post.id}/'),
             ('posts:post_edit',
              (self.post.id,),
-             f'/posts/{self.post.id}/edit/'
+             f'/posts/{self.post.id}/edit/',
              ),
             ('posts:post_create', None, '/create/'),
+            ('posts:add_comment',
+             (self.post.id,),
+             f'/posts/{self.post.id}/comment/',
+             ),
+            ('posts:follow_index', None, '/follow/'),
+            ('posts:profile_follow',
+             (self.user.username,),
+             f'/profile/{self.user.username}/follow/',
+             ),
+            ('posts:profile_unfollow',
+             (self.user.username,),
+             f'/profile/{self.user.username}/unfollow/',
+             ),
+
         )
         for name, args, url in reverse_for_url:
             with self.subTest(name=name):
@@ -73,6 +92,7 @@ class PostURLTests(TestCase):
             ('posts:post_detail', (self.post.id,), 'posts/post_detail.html'),
             ('posts:post_edit', (self.post.id,), 'posts/post_create.html'),
             ('posts:post_create', None, 'posts/post_create.html'),
+            ('posts:follow_index', None, 'posts/follow.html'),
         )
         for name, args, template in templates_url_names:
             with self.subTest(name=name):
@@ -83,8 +103,16 @@ class PostURLTests(TestCase):
         """Тест что все урлы доступны автору"""
         for url, args in self.reverse_names:
             with self.subTest(url=url):
-                response = self.author.get(reverse(url, args=args))
-                self.assertEqual(response.status_code, HTTPStatus.OK)
+                response = self.author.get(reverse(url, args=args),
+                                           follow=True)
+                if (
+                    url == 'posts:profile_follow'
+                    or url == 'posts:profile_unfollow'
+                ):
+                    self.assertRedirects(response, reverse('posts:profile',
+                                                           args=args))
+                else:
+                    self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_url_availability_of_urls_for_auth_user(self):
         """Тест что все урлы, кроме edit доступны не автору,
@@ -102,7 +130,9 @@ class PostURLTests(TestCase):
     def test_url_availability_of_urls_for_guest(self):
         """Тест что все урлы кроме edit и create доступны анониму,
         с create и edit - редирект на авторизацию"""
-        redirect_url = ('posts:post_edit', 'posts:post_create')
+        redirect_url = ('posts:post_edit', 'posts:post_create',
+                        'posts:add_comment', 'posts:follow',
+                        'posts:profile_follow', 'posts:profile_unfollow',)
         for name, args in self.reverse_names:
             with self.subTest(name=name):
                 response = self.client.get(reverse(name, args=args),

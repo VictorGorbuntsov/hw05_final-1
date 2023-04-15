@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from ..models import Group, Post, User
+from ..models import Comment, Group, Post, User
 
 
 class PostModelTest(TestCase):
@@ -17,14 +17,21 @@ class PostModelTest(TestCase):
             author=cls.user,
             text='Test' * 100,
         )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.user,
+            text='VOTTTTTJE',
+        )
 
     def test_models_have_correct_object_names(self):
         """Проверяем, что у моделей корректно работает __str__."""
         post = PostModelTest.post
         group = PostModelTest.group
+        comment = PostModelTest.comment
         field_str = {
             post: post.text[:15],
             group: group.title,
+            comment: comment.text[:15],
         }
         for field, expected_value in field_str.items():
             with self.subTest(field=field):

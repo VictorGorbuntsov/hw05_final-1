@@ -4,14 +4,17 @@
   Последние обновления на сайте
 {% endblock title %}
 
+{% load cache %}
 {% block content %}
   <div class="container py-5">     
-    {% include 'posts/includes/switcher.html' %}
+    {% include "posts/includes/switcher.html" with index=True %}
     <h1>Последние обновления на сайте</h1>
+    {% cache 20 "index_page" %}
       {% for post in page_obj %}
         {% include "posts/includes/post_card.html"%}      
         {% if not forloop.last %}<hr>{% endif %}
       {% endfor %}
-      {% include 'posts/includes/paginator.html' %}
+      {% include "posts/includes/paginator.html" %}
+    {% endcache %}
   </div>  
 {% endblock %}

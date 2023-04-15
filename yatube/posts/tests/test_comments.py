@@ -23,18 +23,11 @@ class CommentCreateFormTests(TestCase):
         self.authorized_client.force_login(self.user)
 
     def test_auth_client_comment(self):
-        """Тест, комментировать пост может только авторизованный клиент"""
+        """Тест, комментировать пост может авторизованный клиент"""
         form_data = {
             'text': 'post is good!'
         }
         count_comments = len(self.post.comments.all())
-        response = self.client.post(
-            reverse('posts:add_comment', args=(self.post.id,)),
-            data=form_data,
-            follow=True
-        )
-        self.assertEqual(len(self.post.comments.all()), count_comments)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
         response = self.authorized_client.post(
             reverse('posts:add_comment', args=(self.post.id,)),
             data=form_data,
@@ -47,3 +40,21 @@ class CommentCreateFormTests(TestCase):
             follow=True,
         )
         self.assertEqual(len(response.context.get('comments')), 1)
+        comment = response.context.get('comments')[0]
+        self.assertEqual(comment.author, self.user)
+        self.assertEqual(comment.post, self.post)
+        self.assertEqual(comment.text, form_data['text'])
+
+    def test_guest_client_comment(self):
+        """Тест, комментировать пост не может аноним клиент"""
+        form_data = {
+            'text': 'post is good!'
+        }
+        count_comments = len(self.post.comments.all())
+        response = self.client.post(
+            reverse('posts:add_comment', args=(self.post.id,)),
+            data=form_data,
+            follow=True,
+        )
+        self.assertEqual(len(self.post.comments.all()), count_comments)
+        self.assertEqual(response.status_code, HTTPStatus.OK)

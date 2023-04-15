@@ -74,9 +74,9 @@ class PostCreateFormTests(TestCase):
         self.assertEqual(Post.objects.count(), posts_count + 1)
         post = Post.objects.first()
         self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.group.id, form_data['group'])
-        self.assertEqual(post.text, form_data['text'])
-        self.assertEqual(post.image, 'posts/small.gif')
+        self.assertEqual(post.group.id, form_data["group"])
+        self.assertEqual(post.text, form_data["text"])
+        self.assertEqual(post.image, f'posts/{form_data["image"].name}')
 
     def test_edit_post(self):
         """Редактированный пост сохраняется в БД c post_id."""

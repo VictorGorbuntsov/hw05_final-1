@@ -1,6 +1,6 @@
 from django.core.paginator import Paginator
 
-from yatube import settings
+from django.conf import settings
 
 
 def paginator(request, posts_list):

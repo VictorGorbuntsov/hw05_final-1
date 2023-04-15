@@ -1,14 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.cache import cache_page
 
 from .forms import CommentForm, PostForm
 from .models import Follow, Group, Post, User
 from .utils import paginator
 
 
-@cache_page(20, key_prefix='index_page')
 def index(request):
     posts_list = Post.objects.select_related('author', 'group').all()
     page_obj = paginator(request, posts_list)
@@ -35,25 +33,30 @@ def profile(request, username):
     count = posts_list.count()
     page_obj = paginator(request, posts_list)
     following = None
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and not request.user == author:
         following = Follow.objects.filter(user=request.user, author=author)
     context = {
         'author': author,
         'page_obj': page_obj,
         'count': count,
         'following': following,
+        'subscriptions': len(Follow.objects.filter(user=author)),
+        'subscribers': len(Follow.objects.filter(author=author)),
     }
     return render(request, 'posts/profile.html', context)
 
 
 def post_detail(request, post_id):
-    post = get_object_or_404(Post, pk=post_id)
-    comments = post.comments.select_related('author').all()
+    post = get_object_or_404(
+        Post.objects.select_related('author')
+                    .prefetch_related('comments__author'),
+        pk=post_id
+    )
     form = CommentForm()
     context = {
         'post': post,
         'form': form,
-        'comments': comments,
+        'comments': post.comments.all(),
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -106,7 +109,7 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    posts_list = Post.objects.filter(
+    posts_list = Post.objects.select_related('author').filter(
         author__following__user=request.user)
     page_obj = paginator(request, posts_list)
     context = {
@@ -125,10 +128,11 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    user_follower = get_object_or_404(
-        Follow,
-        user=request.user,
-        author__username=username
-    )
-    user_follower.delete()
+    author = get_object_or_404(User, username=username)
+    if author != request.user:
+        get_object_or_404(
+            Follow,
+            user=request.user,
+            author__username=username
+        ).delete()
     return redirect('posts:profile', username)

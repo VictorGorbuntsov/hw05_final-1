@@ -25,10 +25,38 @@ class FollowTests(TestCase):
         """Тест проверяющий то, что авторизованный пользователь может
         подписываться на других и удалять их из подписок"""
         self.assertEqual(len(Follow.objects.all()), 0)
-        response = self.authorized_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response.context['page_obj']), 0)
-        response = self.authorized_client.post(
+        self.authorized_client.post(
             reverse('posts:profile_follow', args=(self.user2.username,)),
             follow=True
         )
         self.assertEqual(len(Follow.objects.all()), 1)
+        following = Follow.objects.all()[0]
+        self.assertEqual(following.author, self.user2)
+        self.assertEqual(following.user, self.user)
+        self.authorized_client.post(
+            reverse('posts:profile_unfollow', args=(self.user2.username,)),
+            follow=True
+        )
+        self.assertEqual(len(Follow.objects.all()), 0)
+
+    def test_auth_client_re_follow(self):
+        """Тест повторной подписки"""
+        self.assertEqual(len(Follow.objects.all()), 0)
+        self.authorized_client.post(
+            reverse('posts:profile_follow', args=(self.user2.username,)),
+            follow=True
+        )
+        self.assertEqual(len(Follow.objects.all()), 1)
+        self.authorized_client.post(
+            reverse('posts:profile_follow', args=(self.user2.username,)),
+            follow=True
+        )
+        self.assertEqual(len(Follow.objects.all()), 1)
+
+    def test_follow_to_yourserf(self):
+        self.assertEqual(len(Follow.objects.all()), 0)
+        self.authorized_client.post(
+            reverse('posts:profile_follow', args=(self.user.username,)),
+            follow=True
+        )
+        self.assertEqual(len(Follow.objects.all()), 0)
