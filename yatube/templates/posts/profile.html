@@ -9,8 +9,8 @@
     <div class="mb-5">        
       <h1>Все посты пользователя {{ author }} </h1>
       <h3>Всего постов: {{ count }} </h3>  
-      <h5>Количество подписок: {{ subscriptions }} </h5>
-      <h5>Количество подписчиков: {{ subscribers }} </h5> 
+      <h5>Количество подписок: {{ author.follower.count }} </h5>
+      <h5>Количество подписчиков: {{ author.following.count }} </h5> 
       {% if request.user.is_authenticated and author != request.user%}
         {% if following %}
             <a class="btn btn-lg btn-light"

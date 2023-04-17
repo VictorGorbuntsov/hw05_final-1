@@ -105,11 +105,14 @@ class PostURLTests(TestCase):
             with self.subTest(url=url):
                 response = self.author.get(reverse(url, args=args),
                                            follow=True)
-                if (
-                    url == 'posts:profile_follow'
-                    or url == 'posts:profile_unfollow'
-                ):
+                if url == 'posts:profile_follow':
                     self.assertRedirects(response, reverse('posts:profile',
+                                                           args=args))
+                elif url == 'posts:profile_unfollow':
+                    self.assertEqual(response.status_code,
+                                     HTTPStatus.NOT_FOUND)
+                elif url == 'posts:add_comment':
+                    self.assertRedirects(response, reverse('posts:post_detail',
                                                            args=args))
                 else:
                     self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -121,8 +124,14 @@ class PostURLTests(TestCase):
             with self.subTest(name=name):
                 response = self.authorized_client.get(reverse(name, args=args),
                                                       follow=True)
-                if name == 'posts:post_edit':
+                if name == 'posts:post_edit' or name == 'posts:add_comment':
                     self.assertRedirects(response, reverse('posts:post_detail',
+                                                           args=args))
+                elif (
+                    name == 'posts:profile_follow'
+                    or name == 'posts:profile_unfollow'
+                ):
+                    self.assertRedirects(response, reverse('posts:profile',
                                                            args=args))
                 else:
                     self.assertEqual(response.status_code, HTTPStatus.OK)

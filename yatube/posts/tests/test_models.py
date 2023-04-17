@@ -20,7 +20,7 @@ class PostModelTest(TestCase):
         cls.comment = Comment.objects.create(
             post=cls.post,
             author=cls.user,
-            text='VOTTTTTJE',
+            text='VOTTTTTJE' * 10,
         )
 
     def test_models_have_correct_object_names(self):

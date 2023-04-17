@@ -4,13 +4,13 @@ import tempfile
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django import forms
 
 from ..models import Follow, Post, Group, User
 from posts.forms import PostForm
-from django.conf import settings
 
 TOTAL_NUMBER_POSTS = 13
 
@@ -194,7 +194,7 @@ class CacheViewTest(TestCase):
 
     def test_cache(self):
         response1 = self.client.get(self.url)
-        self.post.delete()
+        Post.objects.filter(pk=self.post.pk).delete()
         response2 = self.client.get(self.url)
         self.assertEqual(response1.content, response2.content)
         cache.clear()

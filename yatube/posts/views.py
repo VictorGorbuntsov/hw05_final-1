@@ -32,24 +32,25 @@ def profile(request, username):
     posts_list = author.posts.select_related('group').all()
     count = posts_list.count()
     page_obj = paginator(request, posts_list)
-    following = None
-    if request.user.is_authenticated and not request.user == author:
-        following = Follow.objects.filter(user=request.user, author=author)
+    following = (
+        request.user.is_authenticated
+        and not request.user == author
+        and Follow.objects.filter(user=request.user, author=author)
+    )
     context = {
         'author': author,
         'page_obj': page_obj,
         'count': count,
         'following': following,
-        'subscriptions': len(Follow.objects.filter(user=author)),
-        'subscribers': len(Follow.objects.filter(author=author)),
     }
     return render(request, 'posts/profile.html', context)
 
 
 def post_detail(request, post_id):
     post = get_object_or_404(
-        Post.objects.select_related('author')
-                    .prefetch_related('comments__author'),
+        Post.objects.select_related(
+            'author'
+        ).prefetch_related('comments__author'),
         pk=post_id
     )
     form = CommentForm()
@@ -128,11 +129,9 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    author = get_object_or_404(User, username=username)
-    if author != request.user:
-        get_object_or_404(
-            Follow,
-            user=request.user,
-            author__username=username
-        ).delete()
+    get_object_or_404(
+        Follow,
+        user=request.user,
+        author__username=username
+    ).delete()
     return redirect('posts:profile', username)

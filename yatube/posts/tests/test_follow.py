@@ -30,11 +30,20 @@ class FollowTests(TestCase):
             follow=True
         )
         self.assertEqual(len(Follow.objects.all()), 1)
-        following = Follow.objects.all()[0]
+        following = Follow.objects.first()
         self.assertEqual(following.author, self.user2)
         self.assertEqual(following.user, self.user)
+
+    def test_auth_client_unfollow(self):
+        "Тест, проверяющий отписку"
+        following = Follow.objects.create(
+            user=self.user,
+            author=self.user2,
+        )
+        self.assertEqual(len(Follow.objects.all()), 1)
         self.authorized_client.post(
-            reverse('posts:profile_unfollow', args=(self.user2.username,)),
+            reverse('posts:profile_unfollow',
+                    args=(following.author.username,)),
             follow=True
         )
         self.assertEqual(len(Follow.objects.all()), 0)
